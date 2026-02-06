@@ -30,6 +30,8 @@ jobs:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          MUNI_UCO: ${{ secrets.MUNI_UCO }}     # Nové
+          MUNI_HESLO: ${{ secrets.MUNI_HESLO }} # Nové
         run: python monitor.py
 
       - name: Commit and Push changes
