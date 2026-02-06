@@ -1,3 +1,9 @@
+import os
+import requests
+import smtplib
+from email.mime.text import MIMEText
+from bs4 import BeautifulSoup
+
 # --- NAČÍTANIE PREMENNÝCH Z GITHUB SECRETS ---
 URL = os.environ["TARGET_URL"]
 EMAIL_USER = os.environ["EMAIL_USER"]
