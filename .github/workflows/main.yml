@@ -2,15 +2,14 @@ name: Website Monitor
 
 on:
   schedule:
-    # Spustiť každú hodinu (syntax: minúta hodina deň mesiac deň_v_týždni)
-    - cron: '*/30 * * * *'
-  workflow_dispatch: # Umožní spustiť to aj manuálne cez tlačidlo
+    - cron: '0 * * * *'
+  workflow_dispatch:
 
 jobs:
   check-website:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Dôležité: povolenie zapisovať do repozitára
+      contents: write
 
     steps:
       - name: Checkout code
@@ -30,19 +29,26 @@ jobs:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
-          MUNI_UCO: ${{ secrets.MUNI_UCO }}     # Nové
-          MUNI_HESLO: ${{ secrets.MUNI_HESLO }} # Nové
+          MUNI_UCO: ${{ secrets.MUNI_UCO }}
+          MUNI_HESLO: ${{ secrets.MUNI_HESLO }}
         run: python monitor.py
+
+      # --- TOTO JE NOVÉ ---
+      # Tento krok nahrá screenshot, aby si si ho mohol pozrieť
+      - name: Upload Debug Screenshot
+        if: always() # Spustí sa aj keď skript spadne
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-screenshot
+          path: *.png
 
       - name: Commit and Push changes
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-          
-          # Skontroluj, či sa last_status.txt zmenil
           if [[ -n $(git status -s last_status.txt) ]]; then
             git add last_status.txt
-            git commit -m "Update website content status [skip ci]"
+            git commit -m "Update status [skip ci]"
             git push
           else
             echo "No changes to commit."
