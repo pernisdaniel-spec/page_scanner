@@ -36,11 +36,11 @@ jobs:
       # --- TOTO JE NOVÉ ---
       # Tento krok nahrá screenshot, aby si si ho mohol pozrieť
       - name: Upload Debug Screenshot
-        if: always() # Spustí sa aj keď skript spadne
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: debug-screenshot
-          path: *.png
+          path: debug_screenshot.png
 
       - name: Commit and Push changes
         run: |
