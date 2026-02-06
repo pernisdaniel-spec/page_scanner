@@ -1,0 +1,47 @@
+name: Website Monitor
+
+on:
+  schedule:
+    # Spustiť každú hodinu (syntax: minúta hodina deň mesiac deň_v_týždni)
+    - cron: '0 * * * *'
+  workflow_dispatch: # Umožní spustiť to aj manuálne cez tlačidlo
+
+jobs:
+  check-website:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Dôležité: povolenie zapisovať do repozitára
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Monitor Script
+        env:
+          TARGET_URL: ${{ secrets.TARGET_URL }}
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: python monitor.py
+
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          
+          # Skontroluj, či sa last_status.txt zmenil
+          if [[ -n $(git status -s last_status.txt) ]]; then
+            git add last_status.txt
+            git commit -m "Update website content status [skip ci]"
+            git push
+          else
+            echo "No changes to commit."
+          fi
