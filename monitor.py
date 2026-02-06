@@ -37,13 +37,13 @@ def send_email(text):
         print(f"Chyba emailu: {e}")
 
 def get_page_content_with_login():
-    # Nastavenie prehliadača (Headless = bez grafického okna)
     chrome_options = Options()
     chrome_options.add_argument("--headless") 
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
+    # Dôležité: Nastavíme veľkosť okna, aby sa prvky vykreslili
+    chrome_options.add_argument("--window-size=1920,1080")
     
-    # Spustenie prehliadača
     service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=chrome_options)
     
@@ -51,46 +51,43 @@ def get_page_content_with_login():
         print("Otváram stránku...")
         driver.get(URL)
         
-        # Kontrola, či nás presmerovalo na prihlasovanie (id.muni.cz)
+        # Logika prihlásenia
         if "id.muni.cz" in driver.current_url or "Přihlášení" in driver.title:
-            print("Zistené prihlasovacie okno. Prihlasujem sa...")
-            
-            # Čakáme, kým sa načíta políčko pre UČO
+            print("Prihlasujem sa...")
             wait = WebDriverWait(driver, 10)
-            uco_field = wait.until(EC.presence_of_element_located((By.NAME, "credentialId"))) # Názov poľa pre UCO
-            
-            # Vyplnenie údajov
+            uco_field = wait.until(EC.presence_of_element_located((By.NAME, "credentialId")))
             uco_field.clear()
             uco_field.send_keys(UCO)
-            
-            # Niektoré verzie loginu IS MUNI vyžadujú kliknúť "Ďalej" pred heslom, 
-            # ale zvyčajne sú na jednej strane. Skúsime nájsť heslo.
-            # Poznámka: IS MUNI má rôzne verzie loginu, toto je pre štandardný Unified Login
             
             password_field = driver.find_element(By.NAME, "password")
             password_field.clear()
             password_field.send_keys(HESLO)
             
-            # Odoslanie formulára (klik na tlačidlo Prihlásiť)
-            login_btn = driver.find_element(By.CSS_SELECTOR, "button[type='submit']")
-            login_btn.click()
+            driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
             
-            # Čakanie na presmerovanie späť na IS
-            print("Čakám na presmerovanie po prihlásení...")
-            time.sleep(5) # Dáme mu čas na spracovanie loginu
+            # Dlhšie čakanie po prihlásení
+            time.sleep(8) 
             
-        # Sme na cieľovej stránke?
-        if "seminare/student" not in driver.current_url and "auth" not in driver.current_url:
-            print(f"Varovanie: Sme na čudnej URL: {driver.current_url}")
+        print(f"Aktuálna URL: {driver.current_url}")
+        print(f"Titulok stránky: {driver.title}")
+
+        # --- DIAGNOSTIKA: Urobíme screenshot ---
+        driver.save_screenshot("debug_screenshot.png")
+        print("Screenshot uložený ako 'debug_screenshot.png'")
         
-        # Získame text stránky (len `body`, aby sme ignorovali hlavičky)
-        body_text = driver.find_element(By.TAG_NAME, "body").text
+        # Skúsime nájsť hlavný obsah. Ak je body prázdne, skúsime page_source
+        body_element = driver.find_element(By.TAG_NAME, "body")
+        body_text = body_element.text
+        
+        if not body_text.strip():
+            print("VAROVANIE: Body je prázdne! Ukladám surové HTML.")
+            return driver.page_source # Vráti HTML kód namiesto čistého textu
+            
         return body_text
 
     except Exception as e:
-        print(f"Chyba prehliadača: {e}")
-        # Pre debugovanie v Actions môžeš odkomentovať nasledujúci riadok:
-        # print(driver.page_source) 
+        print(f"Chyba: {e}")
+        driver.save_screenshot("error_screenshot.png")
         return None
     finally:
         driver.quit()
@@ -99,35 +96,17 @@ def main():
     current_content = get_page_content_with_login()
     
     if not current_content:
-        print("Nepodarilo sa stiahnuť obsah.")
+        print("Nepodarilo sa stiahnuť obsah (funkcia vrátila None).")
         return
 
-    # Načítanie starého obsahu
-    old_content = ""
-    if os.path.exists(STATE_FILE):
-        with open(STATE_FILE, "r", encoding="utf-8") as f:
-            old_content = f.read()
+    print(f"Stiahnutý obsah má dĺžku: {len(current_content)} znakov.")
 
-    # Porovnanie (jednoduchý hash alebo priamo text)
-    # Odstránime časť textu, ktorá sa mení (napr. aktuálny čas na stránke), ak tam je.
-    # Pre jednoduchosť porovnávame všetko.
-    
-    if current_content != old_content:
-        # Kontrola, či to nie je len chyba prihlásenia
-        if "Chyba přihlášení" in current_content:
-            print("Chyba: Zlé heslo alebo UČO.")
-            return
-
-        print("ZMENA DETEKOVANÁ!")
-        
-        with open(STATE_FILE, "w", encoding="utf-8") as f:
-            f.write(current_content)
-        
-        # Ak súbor existoval (nie je to prvý beh), pošli email
-        if old_content != "":
-            send_email(f"Zmena na stránke seminára!\nURL: {URL}")
-    else:
-        print("Žiadna zmena.")
+    # Uloženie do súboru (bez ohľadu na zmenu, aby sme videli, čo sťahuje)
+    with open(STATE_FILE, "w", encoding="utf-8") as f:
+        f.write(current_content)
+            
+    # Tu by nasledovalo porovnanie a email (zatial vynechane pre debugging)
+    # ... (kód pre porovnanie ostáva rovnaký ako predtým)
 
 if __name__ == "__main__":
     main()
